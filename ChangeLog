@@ -1,3 +1,77 @@
+7.0.11 -- 2025-07-08
+
+Security #7766: libhtp-c: memory leak with lzma(HIGH - CVE 2025-53537)
+Security #7659: http2: global tx (stream id 0) may open file and never close it (7.0.x backport)(HIGH - CVE 2025-53538)
+Bug #7779: mpm/ac: error "Just ran out of space in the queue" (7.0.x backport)
+Bug #7748: byte_extract: issue with saved 'name' in distance keyword (7.0.x backport)
+Bug #7736: brotli: old crate version has integer underflow (7.0.x backport)
+Bug #7731: dcerpc: uint16 overflow (rust debug assertion) (7.0.x backport)
+Bug #7716: snmp: probing parser returns ALPROTO_FAILED instead of ALPROTO_UNKNOWN if slice.len() < 4 (7.0.x backport)
+Bug #7690: datasets: set type IP can't set IPv4 (7.0.x backport)
+Bug #7688: flow: non-TCP protocol timeout handling leads to missing flows (7.0.x backport)
+Bug #7682: flow: race condition at shutdown leads to duplicate flows (7.0.x backport)
+Bug #7670: http: lack of setting updated_ts leads to detection delay (7.0.x backport)
+Bug #7663: ips: deconflict pass flow and drop packet rules (7.0.x backport)
+Bug #7661: pcap: continuous file reading fails on an empty directory (7.0.x backport)
+Bug #7652: rust: warnings with rustc 1.86
+Bug #7610: http: reachable assertion when memcap reached during rule reload
+Bug #7375: dpdk: iface-copy should not be mandatory (7.0.x backport)
+Bug #7293: CI: clang-format does not work for main-7.0.x branch (7.0.x backport)
+Optimization #7781: mpm/ac-ks: reduce stack usage (7.0.x backport)
+
+7.0.10 -- 2025-03-25
+
+Bug #7619: af-packet: setting bpf fails (7.0.x backport)
+
+7.0.9 -- 2025-03-18
+
+Security #7616: datasets: hashsize setting via rules can cause high memory usage (7.0.x backport)(MODERATE - CVE 2025-29916)
+Security #7614: decode_base64: signature can do large memory allocation (7.0.x backport)(HIGH - CVE 2025-29917)
+Security #7527: detect: infinite loop with negated pcre and indefinite recursion limit setting (7.0.x backport)(HIGH - CVE 2025-29918)
+Security #7459: af-packet: defrag option can lead to truncated packets (7.0.x backport)(HIGH - CVE 2025-29915)
+Bug #7581: detect: missing file.data matches without filestore (7.0.x backport)
+Bug #7561: detect: integer underflow with krb5.ticket_encryption (7.0.x backport)
+Bug #7557: quic: valid traffic blocked in IPS mode (7.0.x backport)
+Bug #7555: tls: parser error on unACK'd data in FIN shutdown (7.0.x backport)
+Bug #7553: applayer: misdetection if response is seen first without request (7.0.x backport)
+Bug #7496: detect: protocol probing doesn't finish earlier if opposite dir already had a protocol  (7.0.x backport)
+Bug #7493: flow/var: memory leak in lua extension (7.0.x backport)
+Bug #7468: detect: checksum detection broken by stream.checksum-validation (7.0.x backport)
+Bug #7460: eve: empty src_ip and dest_ip values may be logged
+Bug #7448: log/file: nullptr dereference if file was opened more than once (7.0.x backport)
+Bug #7431: flow: multiple Flow Managers scan wrong hash slices (7.0.x backport)
+Bug #7428: tcp: GAP event set on unack'd data following a RST (7.0.x backport)
+Optimization #7088: applayer: track modified transactions to avoid walking all live transactions (7.0.x backport)
+
+7.0.8 -- 2024-12-12
+
+Security #7412: tcp: generic detection bypass using TCP urgent support (7.0.x backport)(HIGH - CVE 2024-55629)
+Security #7405: dns: quadratic complexity in logging and invalid json as output (7.0.x backport)(HIGH - CVE 2024-55628)
+Security #7404: tcp: segfault on StreamingBufferSlideToOffsetWithRegions (7.0.x backport)(CRITICAL - CVE 2024-55627)
+Security #7367: bpf: oversized bpf file can lead to buffer overflow (7.0.x backport)(LOW - CVE 2024-55626)
+Security #7306: detect: write to read-only memory in transforms (7.0.x backport)(CRITICAL - CVE 2024-55605)
+Bug #7445: dpdk: RSS key length missmatch on ice (E810) card with DPDK version 22.11.6  (7.0.x backport)
+Bug #7434: requires: rules with unmet requirements are still loaded (7.0.x backport)
+Bug #7432: detect: decoder event rules fail to match on invalid packets (7.0.x backport)
+Bug #7407: detect: missing app-layer metadata in alerts (7.0.x backport)
+Bug #7368: flow: flow timeout pseudo packet triggers unexpected alert (7.0.x backport)
+Bug #7362: rules: unknown internal events not being detected as errors (7.0.x backport)
+Bug #7339: rust: different int types turn garbage on FFI boundary (7.0.x backport)
+Bug #7335: asan/profiling: global-buffer-overflow error (7.0.x backport)
+Bug #7327: http: FN with prefilter if the first of multi buffer did not match (7.0.x backport)
+Bug #7324: mqtt: wrong and missing direction for keywords (7.0.x backport)
+Bug #7310: http: incorrect file direction handling (7.0.x backport)
+Bug #7308: conf: memleak if yaml parser is initialized before checking if file exists (7.0.x backport)
+Bug #7307: detect: memleak in case of errors during initialization (7.0.x backport)
+Bug #7301: output: oversized records lead to invalid json (7.0.x backport)
+Bug #7295: detect: sip.stat_code keyword uses wrong buffer name
+Bug #7294: conf: nullptr dereference if mem alloc fails for a node in yaml parser (7.0.x backport)
+Optimization #7316: template: remove usage of template-rust (7.0.x backport)
+Optimization #7275: tcp/reassemble: GetBlock takes O(nlgn) in worst case (7.0.x backport)
+Feature #7439: eve/alert: enrich decoder event rules (7.0.x backport)
+Task #7427:  flowint: add isnotset support (7.0.x backport)
+Task #7288: schema: add missing tls fields certificate and chain (7.0.x backport)
+
 7.0.7 -- 2024-10-01
 
 Security #7289: http: missing hashtable random seed leads to potential DoS(CRITICAL - CVE 2024-47188)

@@ -503,7 +503,7 @@ static void SetBpfStringFromFile(char *filename)
     char *bpf_filter = NULL;
     char *bpf_comment_tmp = NULL;
     char *bpf_comment_start =  NULL;
-    uint32_t bpf_len = 0;
+    size_t bpf_len = 0;
     SCStat st;
     FILE *fp = NULL;
     size_t nm = 0;
@@ -518,7 +518,8 @@ static void SetBpfStringFromFile(char *filename)
         SCLogError("Failed to stat file %s", filename);
         exit(EXIT_FAILURE);
     }
-    bpf_len = st.st_size + 1;
+    // st.st_size is signed on Windows
+    bpf_len = ((size_t)(st.st_size)) + 1;
 
     bpf_filter = SCMalloc(bpf_len);
     if (unlikely(bpf_filter == NULL)) {
@@ -2274,9 +2275,15 @@ void PostRunDeinit(const int runmode, struct timeval *start_time)
     /* handle graceful shutdown of the flow engine, it's helper
      * threads and the packet threads */
     FlowDisableFlowManagerThread();
+    /* disable capture */
     TmThreadDisableReceiveThreads();
+    /* tell relevant packet threads to enter flow timeout loop */
+    TmThreadDisablePacketThreads(
+            THV_REQ_FLOW_LOOP, THV_FLOW_LOOP, (TM_FLAG_RECEIVE_TM | TM_FLAG_DETECT_TM));
+    /* run cleanup on the flow hash */
     FlowForceReassembly();
-    TmThreadDisablePacketThreads();
+    /* gracefully shut down all packet threads */
+    TmThreadDisablePacketThreads(THV_KILL, THV_RUNNING_DONE, TM_FLAG_PACKET_ALL);
     SCPrintElapsedTime(start_time);
     FlowDisableFlowRecyclerThread();
 
@@ -2448,6 +2455,11 @@ static int ConfigGetCaptureValue(SCInstance *suri)
         int nlive;
         int strip_trailing_plus = 0;
         switch (suri->run_mode) {
+            case RUNMODE_AFP_DEV:
+                /* For AF_PACKET we delay setting the
+                 * default-packet-size until we know more about the
+                 * configuration. */
+                break;
 #ifdef WINDIVERT
             case RUNMODE_WINDIVERT: {
                 /* by default, WinDivert collects from all devices */
@@ -2468,7 +2480,6 @@ static int ConfigGetCaptureValue(SCInstance *suri)
                 strip_trailing_plus = 1;
                 /* fall through */
             case RUNMODE_PCAP_DEV:
-            case RUNMODE_AFP_DEV:
             case RUNMODE_AFXDP_DEV:
             case RUNMODE_PFRING:
                 nlive = LiveGetDeviceCount();

@@ -39,10 +39,16 @@
 #include "util-misc.h"
 #include "util-path.h"
 #include "util-debug.h"
+#include "util-validate.h"
 
 SCMutex sets_lock = SCMUTEX_INITIALIZER;
 static Dataset *sets = NULL;
 static uint32_t set_ids = 0;
+
+/* 4x what we set in master to allow a smoother upgrade path */
+uint32_t dataset_max_one_hashsize = 262144;
+uint32_t dataset_max_total_hashsize = 67108864;
+uint32_t dataset_used_hashsize = 0;
 
 static int DatasetAddwRep(Dataset *set, const uint8_t *data, const uint32_t data_len,
         DataRepType *rep);
@@ -629,6 +635,34 @@ Dataset *DatasetFind(const char *name, enum DatasetTypes type)
     return set;
 }
 
+static bool DatasetCheckHashsize(const char *name, uint32_t hash_size)
+{
+    if (dataset_max_one_hashsize > 0 && hash_size > dataset_max_one_hashsize) {
+        SCLogError("hashsize %u in dataset '%s' exceeds configured 'single-hashsize' limit (%u)",
+                hash_size, name, dataset_max_one_hashsize);
+        return false;
+    }
+    // we cannot underflow as we know from conf loading that
+    // dataset_max_total_hashsize >= dataset_max_one_hashsize if dataset_max_total_hashsize > 0
+    if (dataset_max_total_hashsize > 0 &&
+            dataset_max_total_hashsize - hash_size < dataset_used_hashsize) {
+        SCLogError("hashsize %u in dataset '%s' exceeds configured 'total-hashsizes' limit (%u, in "
+                   "use %u)",
+                hash_size, name, dataset_max_total_hashsize, dataset_used_hashsize);
+        return false;
+    }
+
+    return true;
+}
+
+static void DatasetUpdateHashsize(const char *name, uint32_t hash_size)
+{
+    if (dataset_max_total_hashsize > 0) {
+        dataset_used_hashsize += hash_size;
+        SCLogDebug("set %s adding with hash_size %u", name, hash_size);
+    }
+}
+
 Dataset *DatasetGet(const char *name, enum DatasetTypes type, const char *save, const char *load,
         uint64_t memcap, uint32_t hashsize)
 {
@@ -677,6 +711,15 @@ Dataset *DatasetGet(const char *name, enum DatasetTypes type, const char *save, 
         }
     }
 
+    GetDefaultMemcap(&default_memcap, &default_hashsize);
+    if (hashsize == 0) {
+        hashsize = default_hashsize;
+    }
+
+    if (!DatasetCheckHashsize(name, hashsize)) {
+        goto out_err;
+    }
+
     set = DatasetAlloc(name);
     if (set == NULL) {
         goto out_err;
@@ -696,12 +739,11 @@ Dataset *DatasetGet(const char *name, enum DatasetTypes type, const char *save, 
     char cnf_name[128];
     snprintf(cnf_name, sizeof(cnf_name), "datasets.%s.hash", name);
 
-    GetDefaultMemcap(&default_memcap, &default_hashsize);
     switch (type) {
         case DATASET_TYPE_MD5:
             set->hash = THashInit(cnf_name, sizeof(Md5Type), Md5StrSet, Md5StrFree, Md5StrHash,
                     Md5StrCompare, load != NULL ? 1 : 0, memcap > 0 ? memcap : default_memcap,
-                    hashsize > 0 ? hashsize : default_hashsize);
+                    hashsize);
             if (set->hash == NULL)
                 goto out_err;
             if (DatasetLoadMd5(set) < 0)
@@ -710,7 +752,7 @@ Dataset *DatasetGet(const char *name, enum DatasetTypes type, const char *save, 
         case DATASET_TYPE_STRING:
             set->hash = THashInit(cnf_name, sizeof(StringType), StringSet, StringFree, StringHash,
                     StringCompare, load != NULL ? 1 : 0, memcap > 0 ? memcap : default_memcap,
-                    hashsize > 0 ? hashsize : default_hashsize);
+                    hashsize);
             if (set->hash == NULL)
                 goto out_err;
             if (DatasetLoadString(set) < 0)
@@ -719,34 +761,36 @@ Dataset *DatasetGet(const char *name, enum DatasetTypes type, const char *save, 
         case DATASET_TYPE_SHA256:
             set->hash = THashInit(cnf_name, sizeof(Sha256Type), Sha256StrSet, Sha256StrFree,
                     Sha256StrHash, Sha256StrCompare, load != NULL ? 1 : 0,
-                    memcap > 0 ? memcap : default_memcap,
-                    hashsize > 0 ? hashsize : default_hashsize);
+                    memcap > 0 ? memcap : default_memcap, hashsize);
             if (set->hash == NULL)
                 goto out_err;
             if (DatasetLoadSha256(set) < 0)
                 goto out_err;
             break;
         case DATASET_TYPE_IPV4:
-            set->hash = THashInit(cnf_name, sizeof(IPv4Type), IPv4Set, IPv4Free, IPv4Hash,
-                    IPv4Compare, load != NULL ? 1 : 0, memcap > 0 ? memcap : default_memcap,
-                    hashsize > 0 ? hashsize : default_hashsize);
+            set->hash =
+                    THashInit(cnf_name, sizeof(IPv4Type), IPv4Set, IPv4Free, IPv4Hash, IPv4Compare,
+                            load != NULL ? 1 : 0, memcap > 0 ? memcap : default_memcap, hashsize);
             if (set->hash == NULL)
                 goto out_err;
             if (DatasetLoadIPv4(set) < 0)
                 goto out_err;
             break;
         case DATASET_TYPE_IPV6:
-            set->hash = THashInit(cnf_name, sizeof(IPv6Type), IPv6Set, IPv6Free, IPv6Hash,
-                    IPv6Compare, load != NULL ? 1 : 0, memcap > 0 ? memcap : default_memcap,
-                    hashsize > 0 ? hashsize : default_hashsize);
+            set->hash =
+                    THashInit(cnf_name, sizeof(IPv6Type), IPv6Set, IPv6Free, IPv6Hash, IPv6Compare,
+                            load != NULL ? 1 : 0, memcap > 0 ? memcap : default_memcap, hashsize);
             if (set->hash == NULL)
                 goto out_err;
             if (DatasetLoadIPv6(set) < 0)
                 goto out_err;
             break;
     }
+    if (set->hash == NULL) {
+        goto out_err;
+    }
 
-    if (set->hash && SC_ATOMIC_GET(set->hash->memcap_reached)) {
+    if (SC_ATOMIC_GET(set->hash->memcap_reached)) {
         SCLogError("dataset too large for set memcap");
         goto out_err;
     }
@@ -756,6 +800,10 @@ Dataset *DatasetGet(const char *name, enum DatasetTypes type, const char *save, 
 
     set->next = sets;
     sets = set;
+
+    /* hash size accounting */
+    DEBUG_VALIDATE_BUG_ON(set->hash->config.hash_size != hashsize);
+    DatasetUpdateHashsize(set->name, set->hash->config.hash_size);
 
     SCMutexUnlock(&sets_lock);
     return set;
@@ -798,6 +846,9 @@ void DatasetReload(void)
             continue;
         }
         set->hidden = true;
+        if (dataset_max_total_hashsize > 0) {
+            dataset_used_hashsize -= set->hash->config.hash_size;
+        }
         SCLogDebug("Set %s at %p hidden successfully", set->name, set);
         set = set->next;
     }
@@ -830,6 +881,10 @@ void DatasetPostReloadCleanup(void)
     SCMutexUnlock(&sets_lock);
 }
 
+/* Value reflects THASH_DEFAULT_HASHSIZE which is what the default was earlier,
+ * despite 2048 commented out in the default yaml. */
+#define DATASETS_HASHSIZE_DEFAULT 4096
+
 static void GetDefaultMemcap(uint64_t *memcap, uint32_t *hashsize)
 {
     const char *str = NULL;
@@ -841,12 +896,14 @@ static void GetDefaultMemcap(uint64_t *memcap, uint32_t *hashsize)
             *memcap = 0;
         }
     }
+
+    *hashsize = (uint32_t)DATASETS_HASHSIZE_DEFAULT;
     if (ConfGet("datasets.defaults.hashsize", &str) == 1) {
         if (ParseSizeStringU32(str, hashsize) < 0) {
+            *hashsize = (uint32_t)DATASETS_HASHSIZE_DEFAULT;
             SCLogWarning("hashsize value cannot be deduced: %s,"
-                         " resetting to default",
-                    str);
-            *hashsize = 0;
+                         " resetting to default: %u",
+                    str, *hashsize);
         }
     }
 }
@@ -859,6 +916,27 @@ int DatasetsInit(void)
     uint32_t default_hashsize = 0;
     GetDefaultMemcap(&default_memcap, &default_hashsize);
     if (datasets != NULL) {
+        const char *str = NULL;
+        if (ConfGet("datasets.limits.total-hashsizes", &str) == 1) {
+            if (ParseSizeStringU32(str, &dataset_max_total_hashsize) < 0) {
+                FatalError("failed to parse datasets.limits.total-hashsizes value: %s", str);
+            }
+        }
+        if (ConfGet("datasets.limits.single-hashsize", &str) == 1) {
+            if (ParseSizeStringU32(str, &dataset_max_one_hashsize) < 0) {
+                FatalError("failed to parse datasets.limits.single-hashsize value: %s", str);
+            }
+        }
+        if (dataset_max_total_hashsize > 0 &&
+                dataset_max_total_hashsize < dataset_max_one_hashsize) {
+            FatalError("total-hashsizes (%u) cannot be smaller than single-hashsize (%u)",
+                    dataset_max_total_hashsize, dataset_max_one_hashsize);
+        }
+        if (dataset_max_total_hashsize > 0 && dataset_max_one_hashsize == 0) {
+            // the total limit also applies for single limit
+            dataset_max_one_hashsize = dataset_max_total_hashsize;
+        }
+
         int list_pos = 0;
         ConfNode *iter = NULL;
         TAILQ_FOREACH(iter, &datasets->head, next) {
@@ -1424,12 +1502,12 @@ static int DatasetAddIPv6(Dataset *set, const uint8_t *data, const uint32_t data
         return -1;
     }
 
-    if (data_len != 16) {
+    if (data_len != 16 && data_len != 4) {
         return -2;
     }
 
     IPv6Type lookup = { .rep.value = 0 };
-    memcpy(lookup.ipv6, data, 16);
+    memcpy(lookup.ipv6, data, data_len);
     struct THashDataGetResult res = THashGetFromHash(set->hash, &lookup);
     if (res.data) {
         DatasetUnlockData(res.data);

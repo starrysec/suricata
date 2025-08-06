@@ -27,8 +27,11 @@
 
 /* packet decoder events */
 enum {
+    /* AF_PACKET EVENTS */
+    AFP_TRUNC_PKT = 0, /**< packet truncated by af-packet */
+
     /* IPV4 EVENTS */
-    IPV4_PKT_TOO_SMALL = 0,       /**< ipv4 pkt smaller than minimum header size */
+    IPV4_PKT_TOO_SMALL,           /**< ipv4 pkt smaller than minimum header size */
     IPV4_HLEN_TOO_SMALL,          /**< ipv4 header smaller than minimum size */
     IPV4_IPLEN_SMALLER_THAN_HLEN, /**< ipv4 pkt len smaller than ip header size */
     IPV4_TRUNC_PKT,               /**< truncated ipv4 packet */
@@ -296,6 +299,7 @@ enum {
     STREAM_REASSEMBLY_INSERT_MEMCAP,
     STREAM_REASSEMBLY_INSERT_LIMIT,
     STREAM_REASSEMBLY_INSERT_INVALID,
+    STREAM_REASSEMBLY_URGENT_OOB_LIMIT_REACHED,
 
     /* should always be last! */
     DECODE_EVENT_MAX,

@@ -431,6 +431,8 @@ impl NFSState {
             // set at least one another transaction to the drop state
             for tx_old in &mut self.transactions {
                 if !tx_old.request_done || !tx_old.response_done {
+                    tx_old.tx_data.updated_tc = true;
+                    tx_old.tx_data.updated_ts = true;
                     tx_old.request_done = true;
                     tx_old.response_done = true;
                     tx_old.is_file_closed = true;
@@ -462,27 +464,11 @@ impl NFSState {
     }
 
     pub fn get_tx_by_id(&mut self, tx_id: u64) -> Option<&NFSTransaction> {
-        SCLogDebug!("get_tx_by_id: tx_id={}", tx_id);
-        for tx in &mut self.transactions {
-            if tx.id == tx_id + 1 {
-                SCLogDebug!("Found NFS TX with ID {}", tx_id);
-                return Some(tx);
-            }
-        }
-        SCLogDebug!("Failed to find NFS TX with ID {}", tx_id);
-        return None;
+        return self.transactions.iter().find(|&tx| tx.id == tx_id + 1);
     }
 
     pub fn get_tx_by_xid(&mut self, tx_xid: u32) -> Option<&mut NFSTransaction> {
-        SCLogDebug!("get_tx_by_xid: tx_xid={}", tx_xid);
-        for tx in &mut self.transactions {
-            if !tx.is_file_tx && tx.xid == tx_xid {
-                SCLogDebug!("Found NFS TX with ID {} XID {:04X}", tx.id, tx.xid);
-                return Some(tx);
-            }
-        }
-        SCLogDebug!("Failed to find NFS TX with XID {:04X}", tx_xid);
-        return None;
+        return self.transactions.iter_mut().find(|tx| !tx.is_file_tx && tx.xid == tx_xid);
     }
 
     /// Set an event. The event is set on the most recent transaction.
@@ -500,6 +486,8 @@ impl NFSState {
     pub fn mark_response_tx_done(&mut self, xid: u32, rpc_status: u32, nfs_status: u32, resp_handle: &[u8])
     {
         if let Some(mytx) = self.get_tx_by_xid(xid) {
+            mytx.tx_data.updated_tc = true;
+            mytx.tx_data.updated_ts = true;
             mytx.response_done = true;
             mytx.rpc_response_status = rpc_status;
             mytx.nfs_response_status = nfs_status;
@@ -685,15 +673,11 @@ impl NFSState {
     }
 
     pub fn xidmap_handle2name(&mut self, xidmap: &mut NFSRequestXidMap) {
-        match self.namemap.get(&xidmap.file_handle) {
-            Some(n) => {
-                SCLogDebug!("xidmap_handle2name: name {:?}", n);
-                xidmap.file_name = n.to_vec();
-            },
-            _ => {
-                SCLogDebug!("xidmap_handle2name: object {:?} not found",
-                        xidmap.file_handle);
-            },
+        if let Some(n) = self.namemap.get(&xidmap.file_handle) {
+            SCLogDebug!("xidmap_handle2name: name {:?}", n);
+            xidmap.file_name = n.to_vec();
+        } else {
+            SCLogDebug!("xidmap_handle2name: object {:?} not found", xidmap.file_handle);
         }
     }
 
@@ -756,6 +740,8 @@ impl NFSState {
                     tx.tx_data.update_file_flags(self.state_data.file_flags);
                     d.update_file_flags(tx.tx_data.file_flags);
                     SCLogDebug!("Found NFS file TX with ID {} XID {:04X}", tx.id, tx.xid);
+                    tx.tx_data.updated_tc = true;
+                    tx.tx_data.updated_ts = true;
                     return Some(tx);
                 }
             }

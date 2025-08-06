@@ -410,6 +410,8 @@ static int TCPProtoDetect(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx,
                 SCLogDebug("reversing flow after proto detect told us so");
                 PacketSwap(p);
                 FlowSwap(f);
+                // Will reset signature groups in DetectRunSetup
+                f->de_ctx_version = UINT32_MAX;
                 SWAP_FLAGS(flags, STREAM_TOSERVER, STREAM_TOCLIENT);
                 if (*stream == &ssn->client) {
                     *stream = &ssn->server;
@@ -684,6 +686,7 @@ int AppLayerHandleTCPData(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx, Packet
     /* If a gap notification, relay the notification on to the
      * app-layer if known. */
     if (flags & STREAM_GAP) {
+        SCLogDebug("GAP of size %u", data_len);
         if (alproto == ALPROTO_UNKNOWN) {
             StreamTcpSetStreamFlagAppProtoDetectionCompleted(*stream);
             SCLogDebug("ALPROTO_UNKNOWN flow %p, due to GAP in stream start", f);

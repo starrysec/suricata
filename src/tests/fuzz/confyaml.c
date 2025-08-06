@@ -85,8 +85,6 @@ app-layer:\n\
       enabled: yes\n\
     template:\n\
       enabled: yes\n\
-    template-rust:\n\
-      enabled: yes\n\
     modbus:\n\
       enabled: yes\n\
       detection-ports:\n\
@@ -112,4 +110,10 @@ app-layer:\n\
       enabled: yes\n\
     quic:\n\
       enabled: yes\n\
+detect:\n\
+  inspection-recursion-limit: 0\n\
+datasets:\n\
+  maximums:\n\
+    single_hashsize: 65536\n\
+    total_hashsizes: 16777216\n\
 ";

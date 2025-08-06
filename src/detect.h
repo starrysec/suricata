@@ -885,6 +885,10 @@ typedef struct DetectEngineCtx_ {
     /* maximum recursion depth for content inspection */
     int inspection_recursion_limit;
 
+    /* force app-layer tx finding for alerts with signatures not having app-layer keywords */
+    bool guess_applayer;
+    bool pad0[3];
+
     /* registration id for per thread ctx for the filemagic/file.magic keywords */
     int filemagic_thread_ctx_id;
 
@@ -924,7 +928,8 @@ typedef struct DetectEngineCtx_ {
     struct SigGroupHead_ *decoder_event_sgh;
 
     /* Maximum size of the buffer for decoded base64 data. */
-    uint32_t base64_decode_max_len;
+    uint16_t base64_decode_max_len;
+    uint16_t pad1;
 
     /** Store rule file and line so that parsers can use them in errors. */
     int rule_line;
@@ -940,6 +945,7 @@ typedef struct DetectEngineCtx_ {
 
     /* specify the configuration for mpm context factory */
     uint8_t sgh_mpm_ctx_cnf;
+    uint8_t pad2[3];
 
     int keyword_id;
     /** hash list of keywords that need thread local ctxs */

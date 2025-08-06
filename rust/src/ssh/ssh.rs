@@ -296,6 +296,8 @@ impl SSHState {
                 return r;
             }
             Err(Err::Incomplete(_)) => {
+                // see https://github.com/rust-lang/rust-clippy/issues/15158
+                #[allow(clippy::collapsible_else_if)]
                 if input.len() < SSH_MAX_BANNER_LEN {
                     //0 consumed, needs at least one more byte
                     return AppLayerResult::incomplete(0_u32, (input.len() + 1) as u32);
@@ -359,6 +361,7 @@ pub unsafe extern "C" fn rs_ssh_parse_request(
     let state = &mut cast_pointer!(state, SSHState);
     let buf = stream_slice.as_slice();
     let hdr = &mut state.transaction.cli_hdr;
+    state.transaction.tx_data.updated_ts = true;
     if hdr.flags < SSHConnectionState::SshStateBannerDone {
         return state.parse_banner(buf, false, pstate);
     } else {
@@ -375,6 +378,7 @@ pub unsafe extern "C" fn rs_ssh_parse_response(
     let state = &mut cast_pointer!(state, SSHState);
     let buf = stream_slice.as_slice();
     let hdr = &mut state.transaction.srv_hdr;
+    state.transaction.tx_data.updated_tc = true;
     if hdr.flags < SSHConnectionState::SshStateBannerDone {
         return state.parse_banner(buf, true, pstate);
     } else {

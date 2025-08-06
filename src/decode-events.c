@@ -27,6 +27,11 @@
 /* code moved to app-layer-events */
 
 const struct DecodeEvents_ DEvents[] = {
+    /* CAPTURE EVENTS */
+    {
+            "decoder.afpacket.trunc_pkt",
+            AFP_TRUNC_PKT,
+    },
     /* IPV4 EVENTS */
     {
             "decoder.ipv4.pkt_too_small",
@@ -871,6 +876,10 @@ const struct DecodeEvents_ DEvents[] = {
     {
             "stream.reassembly_insert_invalid",
             STREAM_REASSEMBLY_INSERT_INVALID,
+    },
+    {
+            "stream.reassembly_urgent_oob_limit_reached",
+            STREAM_REASSEMBLY_URGENT_OOB_LIMIT_REACHED,
     },
 
     { NULL, 0 },

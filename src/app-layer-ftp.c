@@ -528,6 +528,7 @@ static AppLayerResult FTPParseRequest(Flow *f, void *ftp_state, AppLayerParserSt
         FTPTransaction *tx = FTPTransactionCreate(state);
         if (unlikely(tx == NULL))
             SCReturnStruct(APP_LAYER_ERROR);
+        tx->tx_data.updated_ts = true;
         state->curr_tx = tx;
 
         tx->command_descriptor = cmd_descriptor;
@@ -718,6 +719,7 @@ static AppLayerResult FTPParseResponse(Flow *f, void *ftp_state, AppLayerParserS
             SCReturnStruct(APP_LAYER_ERROR);
         }
         lasttx = tx;
+        tx->tx_data.updated_tc = true;
         if (state->command == FTP_COMMAND_UNKNOWN || tx->command_descriptor == NULL) {
             /* unknown */
             tx->command_descriptor = &FtpCommands[FTP_COMMAND_MAX - 1];
@@ -1008,7 +1010,11 @@ static AppLayerResult FTPDataParse(Flow *f, FtpDataState *ftpdata_state,
     SCTxDataUpdateFileFlags(&ftpdata_state->tx_data, ftpdata_state->state_data.file_flags);
     if (ftpdata_state->tx_data.file_tx == 0)
         ftpdata_state->tx_data.file_tx = direction & (STREAM_TOSERVER | STREAM_TOCLIENT);
-
+    if (direction & STREAM_TOSERVER) {
+        ftpdata_state->tx_data.updated_ts = true;
+    } else {
+        ftpdata_state->tx_data.updated_tc = true;
+    }
     /* we depend on detection engine for file pruning */
     const uint16_t flags = FileFlowFlagsToFlags(ftpdata_state->tx_data.file_flags, direction);
     int ret = 0;

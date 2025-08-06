@@ -894,6 +894,7 @@ static void DNP3HandleUserDataRequest(DNP3State *dnp3, const uint8_t *input,
         /* Update the saved transport header so subsequent segments
          * will be matched to this sequence number. */
         tx->th = th;
+        tx->tx_data.updated_ts = true;
     }
     else {
         ah = (DNP3ApplicationHeader *)(input + sizeof(DNP3LinkHeader) +
@@ -909,6 +910,7 @@ static void DNP3HandleUserDataRequest(DNP3State *dnp3, const uint8_t *input,
         if (unlikely(tx == NULL)) {
             return;
         }
+        tx->tx_data.updated_ts = true;
         tx->lh = *lh;
         tx->th = th;
         tx->ah = *ah;
@@ -971,6 +973,7 @@ static void DNP3HandleUserDataResponse(DNP3State *dnp3, const uint8_t *input,
         /* Replace the transport header in the transaction with this
          * one in case there are more frames. */
         tx->th = th;
+        tx->tx_data.updated_tc = true;
     }
     else {
         ah = (DNP3ApplicationHeader *)(input + offset);
@@ -981,6 +984,7 @@ static void DNP3HandleUserDataResponse(DNP3State *dnp3, const uint8_t *input,
         if (unlikely(tx == NULL)) {
             return;
         }
+        tx->tx_data.updated_tc = true;
         tx->lh = *lh;
         tx->th = th;
         tx->ah = *ah;

@@ -82,7 +82,7 @@ pub struct SNMPTransaction<'a> {
     tx_data: applayer::AppLayerTxData,
 }
 
-impl<'a> Transaction for SNMPTransaction<'a> {
+impl Transaction for SNMPTransaction<'_> {
     fn id(&self) -> u64 {
         self.id
     }
@@ -362,7 +362,7 @@ pub unsafe extern "C" fn rs_snmp_probing_parser(_flow: *const Flow,
     }
     let slice = build_slice!(input,input_len as usize);
     let alproto = ALPROTO_SNMP;
-    if slice.len() < 4 { return ALPROTO_FAILED; }
+    if slice.len() < 4 { return ALPROTO_UNKNOWN; }
     match parse_pdu_envelope_version(slice) {
         Ok((_,_))               => alproto,
         Err(Err::Incomplete(_)) => ALPROTO_UNKNOWN,

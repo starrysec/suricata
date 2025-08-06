@@ -581,8 +581,10 @@ void JsonAddrInfoInit(const Packet *p, enum OutputJsonLogDirection dir, JsonAddr
         case IPPROTO_SCTP:
             addr->sp = sp;
             addr->dp = dp;
+            addr->log_port = true;
             break;
         default:
+            addr->log_port = false;
             break;
     }
 
@@ -880,11 +882,21 @@ JsonBuilder *CreateEveHeader(const Packet *p, enum OutputJsonLogDirection dir,
         JsonAddrInfoInit(p, dir, &addr_info);
         addr = &addr_info;
     }
-    jb_set_string(js, "src_ip", addr->src_ip);
-    jb_set_uint(js, "src_port", addr->sp);
-    jb_set_string(js, "dest_ip", addr->dst_ip);
-    jb_set_uint(js, "dest_port", addr->dp);
-    jb_set_string(js, "proto", addr->proto);
+    if (addr->src_ip[0] != '\0') {
+        jb_set_string(js, "src_ip", addr->src_ip);
+    }
+    if (addr->log_port) {
+        jb_set_uint(js, "src_port", addr->sp);
+    }
+    if (addr->dst_ip[0] != '\0') {
+        jb_set_string(js, "dest_ip", addr->dst_ip);
+    }
+    if (addr->log_port) {
+        jb_set_uint(js, "dest_port", addr->dp);
+    }
+    if (addr->proto[0] != '\0') {
+        jb_set_string(js, "proto", addr->proto);
+    }
 
     /* icmp */
     switch (p->proto) {
@@ -987,8 +999,23 @@ int OutputJsonBuilderBuffer(JsonBuilder *js, OutputJsonThreadCtx *ctx)
     }
 
     size_t jslen = jb_len(js);
-    if (MEMBUFFER_OFFSET(*buffer) + jslen >= MEMBUFFER_SIZE(*buffer)) {
-        MemBufferExpand(buffer, jslen);
+    DEBUG_VALIDATE_BUG_ON(jb_len(js) > UINT32_MAX);
+    size_t remaining = MEMBUFFER_SIZE(*buffer) - MEMBUFFER_OFFSET(*buffer);
+    if (jslen >= remaining) {
+        size_t expand_by = jslen + 1 - remaining;
+        if (MemBufferExpand(buffer, (uint32_t)expand_by) < 0) {
+            if (!ctx->too_large_warning) {
+                /* Log a warning once, and include enough of the log
+                 * message to hopefully identify the event_type. */
+                char partial[120];
+                size_t partial_len = MIN(sizeof(partial), jslen);
+                memcpy(partial, jb_ptr(js), partial_len - 1);
+                partial[partial_len - 1] = '\0';
+                SCLogWarning("Formatted JSON EVE record too large, will be dropped: %s", partial);
+                ctx->too_large_warning = true;
+            }
+            return 0;
+        }
     }
 
     MemBufferWriteRaw((*buffer), jb_ptr(js), jslen);

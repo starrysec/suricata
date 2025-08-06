@@ -112,6 +112,10 @@
         "tx_id": {
             "type": "integer"
         },
+        "tx_guessed": {
+            "description": "the signature that triggered this alert didn't tie to a transaction, so the transaction (and metadata) logged is a forced estimation and may not be the one you expect",
+            "type": "boolean"
+        },
         "files": {
             "type": "array",
             "minItems": 1,
@@ -330,6 +334,9 @@
                 },
                 "type": {
                     "type": "string"
+                },
+                "code": {
+                    "type": "integer"
                 }
             },
             "additionalProperties": false
@@ -989,6 +996,9 @@
                 "rrname": {
                     "type": "string"
                 },
+		"rrname_truncated": {
+		    "type": "boolean"
+		},
                 "rrtype": {
                     "type": "string"
                 },
@@ -1122,6 +1132,10 @@
                             "opcode": {
                                 "description": "DNS opcode as an integer",
                                 "type": "integer"
+                            },
+                            "rrname_truncated": {
+                                "description": "Set to true if the rrname was too long and truncated by Suricata",
+                                "type": "boolean"
                             }
                         },
                         "additionalProperties": false
@@ -4143,6 +4157,11 @@
                                 "stream_reassembly": {
                                     "type": "integer"
                                 },
+                                "stream_urgent": {
+                                    "description":
+                                            "Number of packets dropped due to TCP urgent flag",
+                                    "type": "integer"
+                                },
                                 "nfq_error": {
                                     "type": "integer"
                                 },
@@ -4278,6 +4297,17 @@
                         "event": {
                             "type": "object",
                             "properties": {
+                                "afpacket": {
+                                    "type": "object",
+                                    "properties": {
+                                        "trunc_pkt": {
+                                            "description":
+                                                    "Number of packets truncated by AF_PACKET",
+                                            "type": "integer"
+                                        }
+                                    },
+                                    "additionalProperties": false
+                                },
                                 "chdlc": {
                                     "type": "object",
                                     "properties": {
@@ -5298,6 +5328,14 @@
                         },
                         "synack": {
                             "type": "integer"
+                        },
+                        "urg": {
+                            "description": "Number of TCP packets with the urgent flag set",
+                            "type": "integer"
+                        },
+                        "urgent_oob_data": {
+                            "description": "Number of OOB bytes tracked in TCP urgent handling",
+                            "type": "integer"
                         }
                     },
                     "additionalProperties": false
@@ -5338,6 +5376,10 @@
                 "tc_max_regions": {
                     "type": "integer"
                 },
+                "tc_urgent_oob_data": {
+                    "description": "Number of Out-of-Band bytes sent by server using TCP urgent packets",
+                    "type": "integer"
+                },
                 "tcp_flags": {
                     "type": "string"
                 },
@@ -5351,6 +5393,10 @@
                     "type": "boolean"
                 },
                 "ts_max_regions": {
+                    "type": "integer"
+                },
+                "ts_urgent_oob_data": {
+                    "description": "Number of Out-of-Band bytes sent by client using TCP urgent packets",
                     "type": "integer"
                 },
                 "urg": {
@@ -5389,9 +5435,29 @@
         "tls": {
             "type": "object",
             "properties": {
+                "certificate": {
+                    "type": "string"
+                },
+                "chain": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "client": {
                     "type": "object",
                     "properties": {
+                        "certificate": {
+                            "type": "string"
+                        },
+                        "chain": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "string"
+                            }
+                        },
                         "fingerprint": {
                             "type": "string"
                         },

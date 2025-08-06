@@ -661,6 +661,10 @@ af-packet:
     # tpacket_v3 block timeout: an open block is passed to userspace if it is not
     # filled after block-timeout milliseconds.
     #block-timeout: 10
+    # Block size for tpacket-v2. In 7.0.9 the built-in default was
+    # increased from 32768 to 131072. Uncomment and reset back to
+    # 32768 if this is a problem with your configuration.
+    #v2-block-size: 131072
     # On busy systems, set it to yes to help recover from a packet drop
     # phase. This will result in some packets (at max a ring flush) not being inspected.
     #use-emergency-flush: yes
@@ -851,6 +855,14 @@ pcap-file:
   #  checksum off-loading is used. (default)
   # Warning: 'checksum-validation' must be set to yes to have checksum tested
   checksum-checks: auto
+  # tenant-id: none # applies in multi-tenant environment with "direct" selector
+  # delete-when-done: false # applies to file and directory
+
+  # PCAP Directory Processing options
+  # recursive: false
+  # continuous: false
+  # delay: 30 # seconds to wait before processing the newly added PCAPs
+  # poll-interval: 5 # how often to check the directory
 
 # See "Advanced Capture Options" below for more options, including Netmap
 # and PF_RING.
@@ -1183,6 +1195,15 @@ datasets:
   defaults:
     #memcap: 100mb
     #hashsize: 2048
+
+  # Limits for per rule dataset instances to avoid rules using too many
+  # resources.
+  # Note: in Suricata 8 the built-in default will be set to lower values.
+  limits:
+    # Max value for per dataset `hashsize` setting
+    #single-hashsize: 262144
+    # Max combined hashsize values for all datasets.
+    #total-hashsizes: 67108864
 
   rules:
     # Set to true to allow absolute filenames and filenames that use
@@ -1592,6 +1613,10 @@ stream:
   #midstream-policy: ignore
   inline: auto                  # auto will use inline mode in IPS mode, yes or no set it statically
   reassembly:
+    # experimental TCP urgent handling logic
+    #urgent:
+    #  policy: inline           # drop, inline, oob (1 byte, see RFC 6093, 3.1), gap
+    #  oob-limit-policy: drop
     memcap: 256mb
     #memcap-policy: ignore
     depth: 1mb                  # reassemble 1mb into a stream
@@ -1668,15 +1693,20 @@ decoder:
 # The option inspection-recursion-limit is used to limit the recursive calls
 # in the content inspection code.  For certain payload-sig combinations, we
 # might end up taking too much time in the content inspection code.
-# If the argument specified is 0, the engine uses an internally defined
-# default limit.  When a value is not specified, there are no limits on the recursion.
+# If the argument specified is 0, there are no limits on the recursion.
+# When a value is not specified, the default is 3000
 detect:
   profile: medium
   custom-values:
     toclient-groups: 3
     toserver-groups: 25
   sgh-mpm-context: auto
-  inspection-recursion-limit: 3000
+  #inspection-recursion-limit: 3000
+  # try to tie an app-layer transaction for rules without app-layer keywords
+  # if there is only one live transaction for the flow
+  # allows to log app-layer metadata in alert
+  # but the transaction may not be the relevant one.
+  # guess-applayer-tx: no
   # If set to yes, the loading of signatures will be made after the capture
   # is started. This will limit the downtime in IPS mode.
   #delayed-detect: yes
